@@ -131,6 +131,10 @@ button.row:hover{background:var(--hover)}
 .blk{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
 .blk:first-child{border-top:0;padding-top:0}
 .blk h3{margin:0;font-size:.82rem;font-weight:600;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+ .pz{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.88rem;color:var(--ink-2)}
+.pz input[type=text]{width:110px;flex:0 0 auto;font:inherit;font-family:var(--f-mono);font-size:.88rem;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.pz .at{font-family:var(--f-mono);color:var(--ink);font-weight:500}
+.tag-pz{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:.72rem;background:var(--hover);color:var(--ink-2);border:1px solid var(--line);font-family:var(--f-mono)}
 .chk{display:flex;align-items:center;gap:10px;font-size:.92rem;cursor:pointer}
 .chk input{width:17px;height:17px;accent-color:var(--good);flex:none}
 .qs{display:flex;flex-direction:column;gap:6px}
@@ -238,6 +242,7 @@ details.how[open] summary{margin-bottom:10px}
 
   <section class="view section" id="v-inicio">
     <div class="card hero"><div><div class="big" id="heroTitle">Hoje</div><div class="sub" id="heroSub" style="font-size:.9rem"></div></div><button class="btn primary" id="heroGo" type="button">Começar revisão</button></div>
+    <div class="card" id="pauseCard" hidden><div class="today-head"><h2>Continuar de onde parou</h2><span class="muted" style="font-size:.8rem" id="pauseInfo"></span></div><div id="pauseList"></div></div>
     <div class="card"><div class="today-head"><h2 id="prioTitle">Prioridades até a prova</h2><span class="muted" style="font-size:.8rem" id="prioInfo"></span></div><div id="prioList"></div></div>
     <div class="kpis" id="kpis"></div>
     <div class="grid2">
@@ -444,9 +449,25 @@ function qHTML(it,x,q){const n=akey(x,q.n),a=it.ans[n],lab='<span class="n">'+es
   return '<div class="q">'+lab+'<div class="opts">'+["A","B","C","D","E"].map(Lt=>{let c="op";if(a!==undefined){if(Lt===a)c+=Lt===q.g?" ok":" no";else if(Lt===q.g)c+=" right"}
     return '<button class="'+c+'" type="button" data-act="mc" data-id="'+it.id+'" data-n="'+esc(n)+'" data-v="'+Lt+'"'+(a!==undefined?" disabled":"")+'>'+Lt+'</button>'}).join("")+'</div></div>'}
 function tkey(x,gi,xi){return (x.i===0?"":x.k+"#")+gi+"-"+xi}
+function parseTempo(s){s=String(s||"").trim().toLowerCase().replace(/\s+/g,"");if(!s)return null;let h=0,m=0,x=0,r;
+  if(r=s.match(/^(\d+)h(?:(\d+)(?:m(?:in)?)?)?$/)){h=+r[1];m=+(r[2]||0)}
+  else if(r=s.match(/^(\d+)(?:m|min)?$/)){m=+r[1]}
+  else if(r=s.match(/^(\d+):(\d{1,2})$/)){m=+r[1];x=+r[2]}
+  else if(r=s.match(/^(\d+):(\d{1,2}):(\d{1,2})$/)){h=+r[1];m=+r[2];x=+r[3]}
+  else return null;
+  if(x>59)return null;const tot=h*3600+m*60+x;if(!tot||tot>6*3600)return null;
+  const H=Math.floor(tot/3600),M=Math.floor(tot%3600/60),S=tot%60,p=n=>String(n).padStart(2,"0");
+  return H?H+":"+p(M)+":"+p(S):M+":"+p(S)}
+function pausaHTML(it){
+  if(it.pausa)return '<div class="blk"><div class="pz">Parei em <span class="at">'+esc(it.pausa.t)+'</span><span class="muted">· '+nice(it.pausa.d)+'</span>'+
+    '<input type="text" inputmode="numeric" id="pz-'+it.id+'" placeholder="novo tempo" aria-label="Novo minuto onde parei"><button class="mini-btn" type="button" data-act="pz-save" data-id="'+it.id+'">Atualizar</button>'+
+    '<button class="linkbtn" type="button" data-act="pz-clear" data-id="'+it.id+'">Terminei a aula</button></div></div>';
+  if(it.watched!=null)return "";
+  return '<div class="blk"><div class="pz">Parou no meio? Em que minuto:<input type="text" inputmode="numeric" id="pz-'+it.id+'" placeholder="ex.: 47:30" aria-label="Minuto onde parei">'+
+    '<button class="mini-btn" type="button" data-act="pz-save" data-id="'+it.id+'">Salvar</button></div></div>'}
 function studyHTML(it){
   const fsA=fset(it),fs=fsA.filter(x=>!x.f.slides),sl=fsA.filter(x=>x.f.slides),sc=score(it);let h='';
-  h+='<div class="blk"><label class="chk"><input type="checkbox" data-act="watch" data-id="'+it.id+'"'+(it.watched!=null?" checked":"")+'> Assisti a aula'+(it.watched!=null?' <span class="muted" style="font-size:.82rem">· '+nice(it.watched)+'</span>':'')+'</label></div>';
+  h+='<div class="blk"><label class="chk"><input type="checkbox" data-act="watch" data-id="'+it.id+'"'+(it.watched!=null?" checked":"")+'> Assisti a aula'+(it.watched!=null?' <span class="muted" style="font-size:.82rem">· '+nice(it.watched)+'</span>':'')+'</label></div>'+pausaHTML(it);
   if(!fs.length){
     h+='<div class="blk"><p style="margin:0;font-size:.88rem"><span class="pr p1" style="margin:0 6px 0 0">sem folhinha</span><span class="muted">'+(it.nofolha?esc(it.nofolha.charAt(0).toUpperCase()+it.nofolha.slice(1))+'. Se ela aparecer, me mande que eu coloco aqui.':'Ainda não recebi a folhinha desta aula. Me mande o PDF que eu coloco os exercícios aqui.')+'</span></p>'+(sl.length?'<p class="muted" style="margin:8px 0 0;font-size:.88rem">No lugar, o professor postou os '+esc(sl.map(x=>x.f.nome).join(", "))+'. Estão na pasta Folhinhas da frente, no Drive.</p>':'')+'</div>';
     return h}
@@ -465,7 +486,10 @@ function studyHTML(it){
 function studyClick(e,rerender){
   const b=e.target.closest("[data-act]");if(!b)return false;e.stopPropagation();
   const it=state.items.find(x=>x.id===b.dataset.id);if(!it)return true;const act=b.dataset.act,n=b.dataset.n;
-  if(act==="watch"){it.watched=b.checked?TODAY:null}
+  if(act==="watch"){it.watched=b.checked?TODAY:null;if(b.checked)delete it.pausa}
+  else if(act==="pz-save"){const inp=document.getElementById("pz-"+it.id),t=parseTempo(inp&&inp.value);
+    if(!t){toast("Digite o tempo como 47, 47:30 ou 1:05:20");if(inp)inp.focus();return true}it.pausa={t,d:TODAY};toast("Salvo: parou em "+t)}
+  else if(act==="pz-clear"){delete it.pausa;it.watched=TODAY}
   else if(act==="mc"){it.ans[n]=b.dataset.v}
   else if(act==="reveal"){it.ans[n]="?"}
   else if(act==="open"){it.ans[n]=b.dataset.v==="1"}
@@ -494,7 +518,7 @@ function renderToday(){
     const st=kind==="new"?'<span class="state new">primeira vez</span>':late>0?'<span class="state late">'+days(late)+' atrasada</span>':'<span class="state">'+Math.round(r*100)+'% lembrado</span>';
     const links=[it.drive?'<a href="'+esc(it.drive)+'" target="_blank" rel="noopener">Vídeo</a>':"",it.folha?'<a href="'+esc(it.folha)+'" target="_blank" rel="noopener">Folhinha</a>':""].filter(Boolean).join("");
     return '<div class="item'+(open?" open":"")+'" data-item="'+it.id+'">'+
-      '<button class="row" type="button" data-open="'+it.id+'" aria-expanded="'+open+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span class="title"><b>'+esc(it.titulo)+'</b><span>'+esc(it.materia)+' · '+esc(it.frente)+(it.prof?' · Prof. '+esc(it.prof):'')+(it.prio===3?'<span class="pr p3">prioridade alta</span>':'')+'</span></span><span style="display:flex;align-items:center;gap:8px">'+st+CHEV+'</span></button>'+
+      '<button class="row" type="button" data-open="'+it.id+'" aria-expanded="'+open+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span class="title"><b>'+esc(it.titulo)+'</b><span>'+esc(it.materia)+' · '+esc(it.frente)+(it.prof?' · Prof. '+esc(it.prof):'')+(it.pausa?'<span class="tag-pz">parou em '+esc(it.pausa.t)+'</span>':'')+(it.prio===3?'<span class="pr p3">prioridade alta</span>':'')+'</span></span><span style="display:flex;align-items:center;gap:8px">'+st+CHEV+'</span></button>'+
       '<div class="body"><div><div class="inner">'+
         (it.why?'<div class="why"><b>Prioridade '+PRIO[it.prio]+':</b> '+esc(it.why)+'.</div>':'')+(it.nota?'<div class="why">Obs.: '+esc(it.nota)+'.</div>':'')+
         (links?'<div class="links">'+links+'</div>':"")+(it.arquivo?'<div class="path">'+esc(it.arquivo)+'</div>':"")+
@@ -547,7 +571,7 @@ function renderAulas(){
     '<div class="foot"><label><input type="checkbox" id="f-sem"'+(FL.sem?" checked":"")+'> Só aulas sem folhinha</label><span>'+items.length+(items.length===1?" aula":" aulas")+(active?' · <button type="button" class="clear" id="f-clear">limpar filtros</button>':'')+'</span></div>';
   $("list").innerHTML=items.map(it=>{const r=retr(it),open=it.id===openA;
     const st=it.S==null?'<span class="state">'+(it.watched!=null?"assistida":"não vista")+'</span>':(it.due<=TODAY&&it.last!==TODAY?'<span class="state late">revisar hoje</span>':'<span class="state">volta '+nice(it.due)+'</span>');
-    return '<div class="item'+(open?" open":"")+'"><button class="row" type="button" data-open="'+it.id+'" aria-expanded="'+open+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span class="title"><b>'+esc(it.titulo)+'</b><span>'+esc(it.materia)+' · '+esc(it.frente)+(it.prof?' · Prof. '+esc(it.prof):'')+' · '+nice(fromISO(it.aula))+(it.prio?'<span class="pr p'+it.prio+'">'+PRIO[it.prio]+'</span>':'')+(r!=null?' · '+Math.round(r*100)+'% lembrado':'')+(it.pending?' · vídeo pendente':'')+(hasFicha(it)?'':'<span class="pr p1">sem folhinha</span>')+'</span></span><span style="display:flex;align-items:center;gap:8px">'+st+CHEV+'</span></button>'+
+    return '<div class="item'+(open?" open":"")+'"><button class="row" type="button" data-open="'+it.id+'" aria-expanded="'+open+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span class="title"><b>'+esc(it.titulo)+'</b><span>'+esc(it.materia)+' · '+esc(it.frente)+(it.prof?' · Prof. '+esc(it.prof):'')+' · '+nice(fromISO(it.aula))+(it.pausa?'<span class="tag-pz">parou em '+esc(it.pausa.t)+'</span>':'')+(it.prio?'<span class="pr p'+it.prio+'">'+PRIO[it.prio]+'</span>':'')+(r!=null?' · '+Math.round(r*100)+'% lembrado':'')+(it.pending?' · vídeo pendente':'')+(hasFicha(it)?'':'<span class="pr p1">sem folhinha</span>')+'</span></span><span style="display:flex;align-items:center;gap:8px">'+st+CHEV+'</span></button>'+
       '<div class="body"><div><div class="inner">'+(it.why?'<div class="why"><b>Prioridade '+PRIO[it.prio]+':</b> '+esc(it.why)+'.'+(it.nota?' Obs.: '+esc(it.nota)+'.':'')+'</div>':'')+studyHTML(it)+'<details class="editbox"><summary>Editar aula</summary><div class="form">'+
         '<label class="f">Conteúdo<input type="text" id="e-t-'+it.id+'" value="'+esc(it.titulo)+'"></label>'+
         '<label class="f">Link do vídeo<input type="url" id="e-d-'+it.id+'" value="'+esc(it.drive)+'" placeholder="https://drive.google.com/..."></label>'+
@@ -594,6 +618,9 @@ function renderInicio(){
   $("prioTitle").textContent=ex&&ex.foco?"Prioridades para a UFSC · Ciência da Computação":"Prioridades até "+(ex?ex.nome:"a prova");
   const pf=pendingFichas().length,semF=state.items.filter(it=>!hasFicha(it)).length;
   $("prioInfo").textContent=(allHi-pend.length)+" de "+allHi+" já revisadas"+" · "+semF+" aulas sem folhinha"+(pf?" · "+pf+(pf>1?" folhinhas esperando a aula":" folhinha esperando a aula"):"");
+  const pz=state.items.filter(it=>it.pausa).sort((a,b)=>b.pausa.d-a.pausa.d);$("pauseCard").hidden=!pz.length;
+  $("pauseInfo").textContent=pz.length?pz.length+(pz.length>1?" aulas pela metade":" aula pela metade"):"";
+  $("pauseList").innerHTML=pz.map(it=>'<button class="hard" type="button" data-goto="'+it.id+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span style="min-width:0"><b>'+esc(it.titulo)+'</b><br><span class="why2">'+esc(it.materia)+' · '+esc(it.frente)+' · parou em '+esc(it.pausa.t)+' · '+nice(it.pausa.d)+'</span></span>'+CHEV+'</button>').join("");
   $("prioList").innerHTML=pend.length?pend.slice(0,6).map(it=>'<button class="hard" type="button" data-goto="'+it.id+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span style="min-width:0"><b>'+esc(it.titulo)+'</b><br><span class="why2">'+esc(it.materia)+' · '+esc(it.why)+'</span></span>'+CHEV+'</button>').join("")+(pend.length>6?'<div class="emptyline">e mais '+(pend.length-6)+' em Todas as aulas › Prioridade alta</div>':'')
     :'<div class="emptyline">Todas as aulas de prioridade alta já passaram pela primeira revisão.</div>';
   // KPIs
@@ -632,6 +659,9 @@ function renderInicio(){
 }
 function goTab(t){const b=document.querySelector('button[data-tab="'+t+'"]');if(b)b.click()}
 $("heroGo").addEventListener("click",()=>goTab($("heroGo").dataset.go||"hoje"));
+$("pauseList").addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
+  goTab("aulas");Object.assign(FL,{area:"Todas",mat:"",prio:"",sem:false});openA=it.id;renderAulas();const el=document.querySelector('#list [data-open="'+it.id+'"]');if(el)el.scrollIntoView({block:"center"})});
+document.addEventListener("keydown",e=>{if(e.key!=="Enter")return;const t=e.target;if(!t||!t.id||!t.id.startsWith("pz-"))return;e.preventDefault();const b=t.parentNode.querySelector('[data-act="pz-save"]');if(b)b.click()});
 $("prioList").addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
   goTab("aulas");filt="Prioridade alta";openA=it.id;renderAulas();const el=document.querySelector('#list [data-open="'+it.id+'"]');if(el)el.scrollIntoView({block:"center"})});
 $("hardList").addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
