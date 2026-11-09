@@ -390,6 +390,17 @@ details.how[open] summary{margin-bottom:10px}
 
   <section class="view section" id="v-ajustes" hidden>
     <div class="card">
+      <h2>Usar no computador</h2>
+      <p class="sub" style="font-size:.88rem">Baixe o site como um arquivo .html e abra com dois cliques, mesmo sem internet. Ele já vai com o seu progresso de agora. O que você fizer na cópia fica só no seu PC; para trazer de volta, exporte o progresso lá e importe aqui.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn primary" type="button" id="dlSite">Baixar o site</button>
+        <button class="btn" type="button" id="dlProg">Exportar progresso</button>
+        <button class="btn" type="button" id="upProg">Importar progresso</button>
+        <input type="file" id="upFile" accept=".json,application/json" hidden>
+      </div>
+      <p class="sub" id="dlNote" style="font-size:.8rem;margin-top:8px"></p>
+    </div>
+    <div class="card">
       <h2>Provas</h2>
       <p class="sub" style="font-size:.88rem">A próxima prova marcada define o prazo máximo entre revisões.</p>
       <div id="examToggles"></div>
@@ -434,9 +445,10 @@ details.how[open] summary{margin-bottom:10px}
 </div>
 <div class="toast" id="toast" hidden></div>
 
-<script>
+<script id="app">
 (function(){
 "use strict";
+const PAGE_SRC=(function(){try{const d=document.documentElement.cloneNode(true);d.querySelectorAll("script:not(#app),noscript,meta[http-equiv],#seed").forEach(e=>e.remove());return "<!DOCTYPE html>\n"+d.outerHTML}catch(e){return null}})();
 const DAY=86400000;
 function dnum(d){const x=d||new Date();return Math.floor(Date.UTC(x.getFullYear(),x.getMonth(),x.getDate())/DAY)}
 function fromISO(s){const [y,m,d]=s.split("-").map(Number);return Math.floor(Date.UTC(y,m-1,d)/DAY)}
@@ -955,6 +967,26 @@ $("enemList").addEventListener("click",e=>{if(studyClick(e,()=>{renderEnemAulas(
 function enemOpen(id){const it=state.items.find(x=>x.id===id);if(!it)return;goTab("enem");ENF.mat="";ENF.nivel=String(ENEM[id][0]);openE=id;renderEnemAulas();
   const el=document.querySelector('#enemList [data-eopen="'+id+'"]');if(el&&el.scrollIntoView)el.scrollIntoView({block:"center"})}
 
+/* baixar e importar */
+async function offerFile(name,data,type){
+  try{const dl=window.claude&&window.claude.use?await window.claude.use("downloads"):null;
+    if(dl){await dl.save({filename:name,data});return true}}catch(e){if(e&&e.code==="declined")return false;if(e&&e.code&&e.code!=="unavailable"&&e.code!=="not_granted"){toast("Não deu para baixar agora");return false}}
+  try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);return true}catch(e){toast("Não deu para baixar neste navegador");return false}}
+function stamp(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+$("dlSite").addEventListener("click",async()=>{if(!PAGE_SRC){toast("Não deu para gerar a cópia");return}
+  const seed='<script id="seed">window.__SEED__='+JSON.stringify(state).replace(/</g,"\\u003c")+';<\/script>';
+  const html=PAGE_SRC.replace('<script id="app">',seed+'\n<script id="app">');
+  if(await offerFile("Revisao do Leo.html",html,"text/html")){$("dlNote").textContent="Pronto. Abra o arquivo com dois cliques (Chrome, Edge ou Opera).";toast("Site baixado")}});
+$("dlProg").addEventListener("click",async()=>{if(await offerFile("progresso-revisao-"+stamp()+".json",JSON.stringify(state),"application/json"))toast("Progresso exportado")});
+$("upProg").addEventListener("click",()=>$("upFile").click());
+$("upFile").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+  try{const s=JSON.parse(await f.text());if(!s||!Array.isArray(s.items))throw 0;
+    const n=s.items.filter(it=>it.S!=null).length;
+    PEND_IMP=s;$("dlNote").innerHTML="O arquivo tem "+n+" aulas revisadas; aqui há "+state.items.filter(it=>it.S!=null).length+'. <button class="linkbtn" type="button" id="impOk">Substituir pelo do arquivo</button> · <button class="linkbtn" type="button" id="impNo">cancelar</button>'}catch(err){toast("Esse arquivo não é um progresso válido")}});
+let PEND_IMP=null;
+$("dlNote").addEventListener("click",e=>{if(e.target.id==="impOk"&&PEND_IMP){state=merge(PEND_IMP);PEND_IMP=null;save();renderAll();$("dlNote").textContent="Progresso importado.";toast("Progresso importado")}
+  else if(e.target.id==="impNo"){PEND_IMP=null;$("dlNote").textContent=""}});
+
 function goTab(t){const b=document.querySelector('button[data-tab="'+t+'"]');if(b)b.click()}
 $("heroGo").addEventListener("click",()=>goTab($("heroGo").dataset.go||"hoje"));
 $("pauseList").addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
@@ -1017,7 +1049,8 @@ $("resetYes").addEventListener("click",()=>{const keep=state.items.map(it=>({id:
   keep.forEach(k=>{const it=state.items.find(x=>x.id===k.id);if(it){it.drive=k.drive;it.folha=k.folha}});$("resetConfirm").hidden=true;save();renderAll();toast("Progresso apagado")});
 
 /* início */
-state=merge(lsGet());renderAll();
+{const ls=lsGet(),sd=window.__SEED__&&Array.isArray(window.__SEED__.items)?window.__SEED__:null;state=merge(sd&&(!ls||(sd.updated||0)>(ls.updated||0))?sd:ls)}renderAll();
+if(!window.claude)setSync("Cópia no computador: salvo neste navegador");
 try{const t=localStorage.getItem(LS+"-tab");if(t&&t!=="inicio"){const b=document.querySelector('button[data-tab="'+t+'"]');if(b)b.click()}}catch(e){}
 setInterval(()=>{if(dnum()!==TODAY)renderAll()},60000);
 (async function connect(){
