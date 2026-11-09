@@ -620,7 +620,7 @@ function studyClick(e,rerender){
   const b=e.target.closest("[data-act]");if(!b)return false;e.stopPropagation();
   const it=state.items.find(x=>x.id===b.dataset.id);if(!it)return true;const act=b.dataset.act,n=b.dataset.n;
   if(act==="watch"){it.watched=b.checked?TODAY:null;if(b.checked)delete it.pausa}
-  else if(act==="pz-save"){const inp=document.getElementById("pz-"+it.id),t=parseTempo(inp&&inp.value);
+  else if(act==="pz-save"){const inp=b.parentNode.querySelector("input")||document.getElementById("pz-"+it.id),t=parseTempo(inp&&inp.value);
     if(!t){toast("Digite o tempo como 47, 47:30 ou 1:05:20");if(inp)inp.focus();return true}it.pausa={t,d:TODAY};toast("Salvo: parou em "+t)}
   else if(act==="pz-clear"){delete it.pausa;it.watched=TODAY}
   else if(act==="mc"){it.ans[n]=b.dataset.v}
