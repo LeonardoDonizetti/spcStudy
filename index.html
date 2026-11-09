@@ -278,6 +278,8 @@ details.how[open] summary{margin-bottom:10px}
 .endh{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:6px 0 4px;border-bottom:1px solid var(--line)}
 .endh span{color:var(--muted);font-size:.8rem}
 .enmore{margin-top:8px}
+.enfilt{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+.item.endone .title b{color:var(--muted)}
 .enmore>summary{cursor:pointer;font-size:.88rem;color:var(--ink-2);padding:6px 0}
 </style>
 
@@ -295,12 +297,12 @@ details.how[open] summary{margin-bottom:10px}
     <button role="tab" id="tab-hoje" aria-selected="false" data-tab="hoje">Hoje</button>
     <button role="tab" id="tab-aulas" aria-selected="false" data-tab="aulas">Todas as aulas</button>
     <button role="tab" id="tab-exerc" aria-selected="false" data-tab="exerc">Exercícios</button>
+    <button role="tab" id="tab-enem" aria-selected="false" data-tab="enem">Enem</button>
   </nav>
 
   <section class="view section" id="v-inicio">
     <div class="card hero"><div><div class="big" id="heroTitle">Hoje</div><div class="sub" id="heroSub" style="font-size:.9rem"></div></div><button class="btn primary" id="heroGo" type="button">Começar revisão</button></div>
     <div class="card" id="pauseCard" hidden><div class="today-head"><h2>Continuar de onde parou</h2><span class="muted" style="font-size:.8rem" id="pauseInfo"></span></div><div id="pauseList"></div></div>
-    <div class="card" id="enemCard" hidden><div class="today-head"><h2>Enem · exatas</h2><span class="muted" style="font-size:.8rem" id="enemInfo"></span></div><div id="enemBody"></div></div>
     <div class="card"><div class="today-head"><h2 id="prioTitle">Prioridades até a prova</h2><span class="muted" style="font-size:.8rem" id="prioInfo"></span></div><div id="prioList"></div></div>
     <div class="kpis" id="kpis"></div>
     <div class="grid2">
@@ -343,6 +345,11 @@ details.how[open] summary{margin-bottom:10px}
     </div>
   </section>
 
+  <section class="view section" id="v-enem" hidden>
+    <div class="card" id="enemCard"><div class="today-head"><h2>Enem · 2º dia · exatas</h2><span class="muted" style="font-size:.8rem" id="enemInfo"></span></div><div id="enemBody"></div></div>
+    <div class="card"><div class="today-head"><h2>Aulas do Enem</h2><span class="muted" style="font-size:.8rem" id="enemCount"></span></div>
+      <div class="enfilt" id="enemFilt"></div><div class="list" id="enemList"></div></div>
+  </section>
   <section class="view section" id="v-exerc" hidden>
     <div class="kpis" id="exKpis"></div>
     <div class="card" id="exSetup">
@@ -689,7 +696,7 @@ function renderAjustes(){
   $("paceHint").textContent=nNew?nNew+" aulas ainda não revisadas: "+days(Math.ceil(nNew/state.settings.newPerDay))+" nesse ritmo"+(ex?", "+ex.nome+" em "+days(ex.n-TODAY)+".":"."):"Todas as aulas já foram revisadas pelo menos uma vez.";
   $("backup").value=JSON.stringify(state);setSync(syncMsg);
 }
-function renderAll(){TODAY=dnum();renderHeader();renderToday();renderAulas();renderAjustes();renderInicio();if(typeof renderEnem==="function")renderEnem();if(typeof renderExerc==="function")renderExerc()}
+function renderAll(){TODAY=dnum();renderHeader();renderToday();renderAulas();renderAjustes();renderInicio();if(typeof renderEnem==="function"){renderEnem();renderEnemAulas()}if(typeof renderExerc==="function")renderExerc()}
 
 
 /* tempo de estudo: conta só com a página visível e uso recente */
@@ -971,8 +978,27 @@ $("enemBody").addEventListener("change",e=>{const c=e.target.closest("[data-enck
 $("enemBody").addEventListener("click",e=>{const t=e.target.closest("[data-entrain]");
   if(t){const ids=new Set((EN_PLAN&&EN_PLAN.days[0]?EN_PLAN.days[0].its:[]).map(it=>it.id));const l=exAllQs().filter(o=>ids.has(o.it.id));
     if(!l.length){toast("Essas aulas ainda não têm questões de folhinha");return}goTab("exerc");EX.mode="misto";renderExSetup();exStart(exShuffle(l).slice(0,20));return}
-  const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
-  goTab("aulas");Object.assign(FL,{area:"Todas",mat:"",prio:"",sem:false});openA=it.id;renderAulas();const el=document.querySelector('#list [data-open="'+it.id+'"]');if(el)el.scrollIntoView({block:"center"})});
+  const b=e.target.closest("[data-goto]");if(!b)return;enemOpen(b.dataset.goto)});
+/* aba Enem: aulas de exatas */
+const ENF={mat:"",nivel:"3"};let openE=null;
+function renderEnemAulas(){if(!$("enemList"))return;const done=enemData().done,order=["Matemática","Física","Química","Biologia"];
+  const all=state.items.filter(it=>ENEM[it.id]);
+  $("enemFilt").innerHTML='<span class="seg" role="group" aria-label="Matéria">'+["","Matemática","Física","Química","Biologia"].map(m=>'<button type="button" data-enm="'+m+'" aria-pressed="'+(ENF.mat===m)+'">'+(m||"Todas")+'</button>').join("")+'</span>'+
+    '<span class="seg" role="group" aria-label="Nível">'+[["3","Essenciais"],["2","Também caem"],["","Todas"]].map(([v,t])=>'<button type="button" data-enl="'+v+'" aria-pressed="'+(ENF.nivel===v)+'">'+t+'</button>').join("")+'</span>';
+  const items=all.filter(it=>(!ENF.mat||it.materia===ENF.mat)&&(!ENF.nivel||String(ENEM[it.id][0])===ENF.nivel))
+    .sort((a,b)=>ENEM[b.id][0]-ENEM[a.id][0]||order.indexOf(a.materia)-order.indexOf(b.materia)||(a.aula<b.aula?-1:1));
+  $("enemCount").textContent=items.length+(items.length===1?" aula":" aulas")+" · "+items.filter(it=>done[it.id]!=null).length+" estudadas";
+  $("enemList").innerHTML=items.map(it=>{const e=ENEM[it.id],open=it.id===openE,dn=done[it.id]!=null;
+    return '<div class="item'+(open?" open":"")+(dn?" endone":"")+'"><button class="row" type="button" data-eopen="'+it.id+'" aria-expanded="'+open+'"><span class="fr" style="background:'+mcolor(it.materia)+'"></span><span class="title"><b>'+esc(it.titulo)+'</b><span>'+esc(it.materia)+' · '+esc(it.frente)+' · '+nice(fromISO(it.aula))+(dn?' · <span class="state">estudada para o Enem</span>':'')+'</span></span><span class="pr p'+(e[0]===3?3:2)+'">'+(e[0]===3?"essencial":"também cai")+'</span>'+CHEV+'</button>'+
+      '<div class="body"><div><div class="inner"><div class="why"><b>No Enem:</b> '+esc(EW[e[1]])+'.</div>'+
+      '<label class="chk" style="margin:4px 0 12px"><input type="checkbox" data-enck="'+it.id+'"'+(dn?" checked":"")+'> Estudei este tema para o Enem</label>'+studyHTML(it)+'</div></div></div></div>'}).join("")||'<div class="emptyline">Nenhuma aula com esse filtro.</div>'}
+$("enemFilt").addEventListener("click",e=>{const m=e.target.closest("[data-enm]"),l=e.target.closest("[data-enl]");if(m)ENF.mat=m.dataset.enm;else if(l)ENF.nivel=l.dataset.enl;else return;openE=null;renderEnemAulas()});
+$("enemList").addEventListener("change",e=>{const c=e.target.closest("[data-enck]");if(!c)return;const d=enemData().done;if(c.checked)d[c.dataset.enck]=TODAY;else delete d[c.dataset.enck];save();renderEnem();renderEnemAulas();toast(c.checked?"Marcada como estudada":"Desmarcada")});
+$("enemList").addEventListener("click",e=>{if(studyClick(e,()=>{renderEnemAulas();renderToday()}))return;
+  const o=e.target.closest("[data-eopen]");if(!o)return;openE=openE===o.dataset.eopen?null:o.dataset.eopen;
+  $("enemList").querySelectorAll(".item").forEach(el=>{const b=el.querySelector("[data-eopen]"),mine=b.dataset.eopen===openE;el.classList.toggle("open",mine);b.setAttribute("aria-expanded",mine)})});
+function enemOpen(id){const it=state.items.find(x=>x.id===id);if(!it)return;goTab("enem");ENF.mat="";ENF.nivel=String(ENEM[id][0]);openE=id;renderEnemAulas();
+  const el=document.querySelector('#enemList [data-eopen="'+id+'"]');if(el&&el.scrollIntoView)el.scrollIntoView({block:"center"})}
 
 function goTab(t){const b=document.querySelector('button[data-tab="'+t+'"]');if(b)b.click()}
 $("heroGo").addEventListener("click",()=>goTab($("heroGo").dataset.go||"hoje"));
@@ -989,7 +1015,7 @@ function onTab(e){const b=e.target.closest("button[data-tab]");if(!b)return;
   document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===b.dataset.tab?"true":"false"));
   $("gear").setAttribute("aria-pressed",b.dataset.tab==="ajustes"?"true":"false");
   document.querySelectorAll(".view").forEach(v=>v.hidden=v.id!=="v-"+b.dataset.tab);openId=null;openA=null;
-  if(b.dataset.tab==="hoje")renderToday();if(b.dataset.tab==="aulas")renderAulas();if(b.dataset.tab==="inicio"){renderInicio();renderEnem()}if(b.dataset.tab==="exerc")renderExerc();
+  if(b.dataset.tab==="hoje")renderToday();if(b.dataset.tab==="aulas")renderAulas();if(b.dataset.tab==="inicio")renderInicio();if(b.dataset.tab==="enem"){renderEnem();renderEnemAulas()}if(b.dataset.tab==="exerc")renderExerc();
   try{localStorage.setItem(LS+"-tab",b.dataset.tab)}catch(err){}}
 $("tabs").addEventListener("click",onTab);$("gear").addEventListener("click",onTab);
 function toggleOpen(container,id){
