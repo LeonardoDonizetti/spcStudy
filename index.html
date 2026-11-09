@@ -233,7 +233,7 @@ details.how[open] summary{margin-bottom:10px}
 /* exercícios */
 .exbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 .exbar label.f{min-width:150px;flex:1}
-.exbar .seg{flex-basis:100%}
+
 .exopts{display:flex;flex-wrap:wrap;gap:14px;font-size:.86rem;color:var(--ink-2)}
 .exopts label{display:inline-flex;gap:6px;align-items:center}
 .exrun .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
@@ -283,6 +283,13 @@ details.how[open] summary{margin-bottom:10px}
 .endh span{color:var(--muted);font-size:.8rem}
 .enmore{margin-top:8px}
 .enrk{font-family:var(--f-mono);font-size:.78rem;color:var(--muted);font-weight:400;margin-right:2px}
+.enfilt .seg,#exMode{display:inline-flex;flex-wrap:nowrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);max-width:100%}
+.enfilt .seg button,#exMode button{appearance:none;-webkit-appearance:none;border:0;border-right:1px solid var(--line);background:transparent;padding:7px 14px;font:inherit;font-size:.86rem;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.enfilt .seg button:last-child,#exMode button:last-child{border-right:0}
+.enfilt .seg button:hover,#exMode button:hover{background:var(--hover)}
+.enfilt .seg button[aria-pressed="true"],#exMode button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.enfilt .seg button:focus-visible,#exMode button:focus-visible{outline:2px solid var(--accent,var(--ink));outline-offset:-2px}
+@media (max-width:640px){.enfilt .seg,#exMode{display:flex;width:100%}.enfilt .seg button,#exMode button{flex:1 1 auto;min-width:0;padding:7px 4px;font-size:.78rem}}
 .enfilt{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
 .item.endone .title b{color:var(--muted)}
 .enmore>summary{cursor:pointer;font-size:.88rem;color:var(--ink-2);padding:6px 0}
@@ -359,8 +366,8 @@ details.how[open] summary{margin-bottom:10px}
     <div class="kpis" id="exKpis"></div>
     <div class="card" id="exSetup">
       <div class="today-head"><h2>Praticar</h2><span class="muted" style="font-size:.8rem" id="exPool"></span></div>
+      <div style="margin-bottom:12px"><span class="seg" role="group" aria-label="Modo" id="exMode"><button type="button" data-m="misto" aria-pressed="true">Treino misto</button><button type="button" data-m="erros" aria-pressed="false">Caderno de erros</button><button type="button" data-m="aula" aria-pressed="false">Por aula</button></span></div>
       <div class="exbar">
-        <span class="seg" role="group" aria-label="Modo" id="exMode"><button type="button" data-m="misto" aria-pressed="true">Treino misto</button><button type="button" data-m="erros" aria-pressed="false">Caderno de erros</button><button type="button" data-m="aula" aria-pressed="false">Por aula</button></span>
         <label class="f" id="exAreaL">Área<select id="exArea"><option>Todas</option><option>Exatas</option><option>Humanas</option></select></label>
         <label class="f" id="exMatL">Matéria<select id="exMat"></select></label>
         <label class="f" id="exNL">Questões<select id="exN"><option value="10">10</option><option value="20">20</option><option value="30">30</option><option value="0">todas</option></select></label>
