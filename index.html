@@ -3,6 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f2328">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Revisão Espaçada do Leo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -393,6 +397,7 @@ details.how[open] summary{margin-bottom:10px}
       <h2>Usar no computador</h2>
       <p class="sub" style="font-size:.88rem">Baixe o site como um arquivo .html e abra com dois cliques, mesmo sem internet. Ele já vai com o seu progresso de agora. O que você fizer na cópia fica só no seu PC; para trazer de volta, exporte o progresso lá e importe aqui.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn primary" type="button" id="instApp" hidden>Instalar como app</button>
         <button class="btn primary" type="button" id="dlSite">Baixar o site</button>
         <button class="btn" type="button" id="dlProg">Exportar progresso</button>
         <button class="btn" type="button" id="upProg">Importar progresso</button>
@@ -987,6 +992,10 @@ let PEND_IMP=null;
 $("dlNote").addEventListener("click",e=>{if(e.target.id==="impOk"&&PEND_IMP){state=merge(PEND_IMP);PEND_IMP=null;save();renderAll();$("dlNote").textContent="Progresso importado.";toast("Progresso importado")}
   else if(e.target.id==="impNo"){PEND_IMP=null;$("dlNote").textContent=""}});
 
+let INST=null;window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();INST=e;$("instApp").hidden=false});
+window.addEventListener("appinstalled",()=>{INST=null;$("instApp").hidden=true;toast("App instalado")});
+$("instApp").addEventListener("click",async()=>{if(!INST)return;INST.prompt();try{await INST.userChoice}catch(e){}INST=null;$("instApp").hidden=true});
+
 function goTab(t){const b=document.querySelector('button[data-tab="'+t+'"]');if(b)b.click()}
 $("heroGo").addEventListener("click",()=>goTab($("heroGo").dataset.go||"hoje"));
 $("pauseList").addEventListener("click",e=>{const b=e.target.closest("[data-goto]");if(!b)return;const it=state.items.find(x=>x.id===b.dataset.goto);if(!it)return;
@@ -1065,5 +1074,6 @@ setInterval(()=>{if(dnum()!==TODAY)renderAll()},60000);
 })();
 </script>
 
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(function(){});</script>
 </body>
 </html>
